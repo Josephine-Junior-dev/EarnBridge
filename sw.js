@@ -1,1 +1,54 @@
-const C="earnbridge-v1";const A=["./","./index.html","./styles.css","./config.js","./app.js","./manifest.json"];self.addEventListener("install",e=>e.waitUntil(caches.open(C).then(c=>c.addAll(A))));self.addEventListener("activate",e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x))))));self.addEventListener("fetch",e=>{if(e.request.method==="GET"&&new URL(e.request.url).origin===location.origin)e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request)))});
+const CACHE="earnbridge-v2";
+const ASSETS=["./","./index.html","./styles.css","./config.js","./app.js","./manifest.json"];
+
+self.addEventListener("install",event=>{
+  event.waitUntil((async()=>{
+    const cache=await caches.open(CACHE);
+    await cache.addAll(ASSETS);
+    await self.skipWaiting();
+  })());
+});
+
+self.addEventListener("activate",event=>{
+  event.waitUntil((async()=>{
+    const keys=await caches.keys();
+    await Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener("fetch",event=>{
+  const request=event.request;
+  if(request.method!=="GET" || new URL(request.url).origin!==self.location.origin) return;
+
+  const url=new URL(request.url);
+  const isAppShell=request.mode==="navigate" ||
+    url.pathname.endsWith("/index.html") ||
+    url.pathname.endsWith("/app.js") ||
+    url.pathname.endsWith("/config.js");
+
+  if(isAppShell){
+    event.respondWith((async()=>{
+      try{
+        const fresh=await fetch(request,{cache:"no-store"});
+        const cache=await caches.open(CACHE);
+        cache.put(request,fresh.clone());
+        return fresh;
+      }catch(error){
+        const cached=await caches.match(request);
+        if(cached) return cached;
+        throw error;
+      }
+    })());
+    return;
+  }
+
+  event.respondWith((async()=>{
+    const cached=await caches.match(request);
+    if(cached) return cached;
+    const fresh=await fetch(request);
+    const cache=await caches.open(CACHE);
+    cache.put(request,fresh.clone());
+    return fresh;
+  })());
+});
