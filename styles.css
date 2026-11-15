@@ -33,3 +33,21 @@ main{min-height:calc(100vh - 120px)}.auth{max-width:1260px;min-height:calc(100vh
 .dispute-note{background:#fff6e8}
 .form-hint{font-size:10px;line-height:1.6;color:var(--muted);background:#f5f8f5;border-radius:10px;padding:12px}
 @media(max-width:680px){.order-card{display:block!important}.order-actions{max-width:none;justify-content:flex-start;margin-top:14px}.order-meta{gap:9px}}
+
+/* SaaS business, reporting, plans and admin */
+.business-grid,.plan-grid,.report-grid,.admin-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin:18px 0}
+.business-card,.plan-card,.report-panel{background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.business-card-head{display:flex;justify-content:space-between;align-items:center}.business-avatar{width:42px;height:42px;border-radius:13px;background:#e7f5ec;color:var(--green);display:grid;place-items:center;font:800 18px Manrope}
+.business-card h3{margin:15px 0 6px}.business-card p,.plan-card p,.report-panel>p{font-size:12px;line-height:1.6;color:var(--muted)}
+.business-meta{padding-top:12px;border-top:1px solid var(--line);font-size:11px;color:var(--muted)}
+.business-actions{display:flex;justify-content:flex-end;margin-top:12px}
+.current-plan-banner{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:22px;background:#102a22;color:#fff;border-radius:18px;margin-bottom:18px}
+.current-plan-banner h2{margin:8px 0 4px;font:800 23px Manrope}.current-plan-banner p{margin:0;color:#c6d7ce;font-size:12px}
+.plan-card{position:relative}.plan-card.plan-current{border:2px solid var(--green)}.plan-label{font-size:9px;font-weight:800;letter-spacing:1px;color:var(--green)}
+.plan-card h3{font:800 21px Manrope;margin:12px 0}.plan-price{font:800 27px Manrope}.plan-price small{font:500 11px 'DM Sans';color:var(--muted)}
+.plan-card ul{padding:0;list-style:none;display:grid;gap:10px;margin:18px 0 22px;font-size:12px}.plan-card li{color:#52645a}
+.report-grid{grid-template-columns:1fr 1fr}.report-panel h2{font:800 16px Manrope;margin:0 0 7px}.report-stage{display:grid;grid-template-columns:110px 1fr 25px;gap:10px;align-items:center;margin:13px 0;font-size:11px;text-transform:capitalize}.report-track{height:8px;background:#edf2ee;border-radius:10px;overflow:hidden}.report-track i{display:block;height:100%;background:var(--green);border-radius:10px}.report-stage b{text-align:right}
+.report-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:24px}.report-kpis div{background:#f4f8f5;border-radius:12px;padding:15px}.report-kpis b{display:block;font:800 22px Manrope}.report-kpis span{font-size:10px;color:var(--muted)}
+.admin-grid{grid-template-columns:1fr 1fr}.admin-actions{display:flex;gap:6px;flex-wrap:wrap}.admin-actions select,.list-card select{max-width:145px;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;font-size:10px}
+.full-btn{width:100%}
+@media(max-width:760px){.business-grid,.plan-grid,.report-grid,.admin-grid{grid-template-columns:1fr}.current-plan-banner{align-items:flex-start;flex-direction:column}.report-stage{grid-template-columns:85px 1fr 22px}.report-kpis{gap:6px}.report-kpis div{padding:10px}}
