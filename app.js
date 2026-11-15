@@ -91,3 +91,56 @@ async function passport(){
 function workForm(x={}){modal(x.id?"Edit work record":"Add work to your passport",'<form class="form-grid">'+field("Project / job title","project_title","text",x.project_title,true)+field("Customer name","client_name","text",x.client_name,true)+field("Customer email (optional)","client_email","email",x.client_email)+area("What work did you deliver?","work_description",x.work_description||"",true)+field("Start date","start_date","date",x.start_date)+field("Completion date","completion_date","date",x.completion_date)+field("Agreed value","agreed_amount","number",x.agreed_amount??"",false,'min="0" step="0.01"')+selectField("Currency","currency",["KES","USD","GBP","EUR","UGX","TZS","NGN"],x.currency||"KES")+field("Evidence link (optional)","evidence_url","url",x.evidence_url)+area("Evidence notes (avoid confidential details)","evidence_note",x.evidence_note||"")+submit("Save work record")+'</form>',async p=>{p.owner_id=user.id;p.agreed_amount=p.agreed_amount?Number(p.agreed_amount):null;p.status=x.status||"in_progress";if(x.status==="verified")throw new Error("Verified records cannot be edited.");const q=x.id?db.from("eb_work_records").update(p).eq("id",x.id):db.from("eb_work_records").insert(p);const {error}=await q;if(error)throw error;toast("Work record saved");passport()})}
 const earnBridgeBaseRender=render;
 render=async function(){if(page==="passport"){shell('<div class="loading">Loading your Work Passport…</div>');try{await passport()}catch(e){shell(empty("Work Passport unavailable",e.message));console.error(e)}}else await earnBridgeBaseRender()};
+
+
+/* REAL CUSTOMER-TO-PROVIDER ORDER WORKFLOW */
+pages.orders=["Orders & delivery","Manage real customer orders from request through delivery and completion."];
+async function marketplace(){
+ const {data,error}=await db.from("eb_services").select("*,eb_profiles(full_name,headline,country,city)").eq("status","published").neq("user_id",user.id).order("created_at",{ascending:false});
+ if(error)throw error;const rows=data||[];
+ shell('<div class="toolbar"><input id="market-search" placeholder="Search services, skills or providers…"><span class="toolbar-note">'+rows.length+' services available</span></div><div class="service-grid" id="market-grid">'+(rows.map(x=>'<article class="service-card"><div class="service-card-top"><span class="tag tag-green">'+esc(x.category||"Service")+'</span><span class="tag tag-blue">'+esc(x.eb_profiles?.country||"Global")+'</span></div><div class="service-symbol">✦</div><h3>'+esc(x.title)+'</h3><p>'+esc(x.description)+'</p><div class="service-bottom"><strong>'+(x.price==null?"Quote required":money(x.price,x.currency))+'</strong><span>'+esc((x.pricing_type||"custom").replaceAll("_"," "))+'</span></div><small>By '+esc(x.eb_profiles?.full_name||"EarnBridge provider")+' · '+esc(x.eb_profiles?.headline||"Independent professional")+'</small><button class="btn btn-primary full-btn" style="margin-top:14px" data-order-service="'+x.id+'">Request this service →</button></article>').join("")||empty("No services available yet","Published services from other EarnBridge members will appear here.") )+'</div>');
+ $("#market-search").oninput=e=>document.querySelectorAll("#market-grid .service-card").forEach(c=>c.hidden=!c.textContent.toLowerCase().includes(e.target.value.toLowerCase()));
+ document.querySelectorAll("[data-order-service]").forEach(b=>b.onclick=()=>{const x=rows.find(z=>z.id===b.dataset.orderService);modal("Request "+esc(x.title),'<form class="form-grid">'+field("Order title","title","text",x.title,true)+area("Describe exactly what you need","description","",true)+field("Agreed price ("+(x.currency||"KES")+")","amount","number",x.price??"",true,'min="0.01" step="0.01"')+field("Requested delivery date","due_date","date","")+'<p class="form-hint full">This sends a request to the provider. No payment is taken at this stage. Confirm the scope and payment arrangements directly before work begins.</p>'+submit("Send order request")+'</form>',async p=>{p.customer_id=user.id;p.provider_id=x.user_id;p.service_id=x.id;p.amount=Number(p.amount);p.currency=x.currency||"KES";p.status="requested";const {error}=await db.from("eb_orders").insert(p);if(error)throw error;toast("Order request sent");go("orders")})});
+}
+async function orders(){
+ const {data,error}=await db.from("eb_orders").select("*,eb_services(title)").order("created_at",{ascending:false});if(error)throw error;
+ const rows=data||[],mine=rows.filter(x=>x.provider_id===user.id||x.customer_id===user.id);
+ const open=mine.filter(x=>!["completed","cancelled"].includes(x.status)).length;
+ const received=mine.filter(x=>x.provider_id===user.id&&x.status==="completed").reduce((s,x)=>s+Number(x.amount),0);
+ shell('<div class="stats-grid">'+stat("All orders",mine.length,"Orders involving you","▤")+stat("Active orders",open,"Awaiting next action","◷")+stat("Completed value",money(received),"Completed provider orders","↗")+'</div><div class="toolbar"><p class="toolbar-note">Every order is linked to its customer and provider. Order terms are locked after request.</p><button class="btn btn-outline" id="refresh-orders">Refresh orders</button></div><div class="list-cards">'+(mine.map(x=>{const provider=x.provider_id===user.id,other=provider?"Customer":"Provider";const label=provider?"Customer":"Provider";return '<article class="list-card order-card"><div class="order-main"><div class="order-top"><span class="tag '+(x.status==="completed"?"tag-green":x.status==="disputed"?"tag-amber":"tag-blue")+'">'+esc(x.status.replaceAll("_"," "))+'</span><small>'+new Date(x.created_at).toLocaleDateString()+'</small></div><h3>'+esc(x.title)+'</h3><p>'+esc(x.description||"No additional details")+'</p><div class="order-meta"><b>'+money(x.amount,x.currency)+'</b><span>'+label+': '+esc(provider?x.customer_id.slice(0,8):x.provider_id.slice(0,8))+'</span>'+(x.due_date?'<span>Due '+esc(x.due_date)+'</span>':"")+'</div>'+(x.delivery_note?'<p class="delivery-note"><b>Delivery note:</b> '+esc(x.delivery_note)+'</p>':"")+(x.dispute_reason?'<p class="dispute-note"><b>Dispute:</b> '+esc(x.dispute_reason)+'</p>':"")+'</div><div class="order-actions">'+orderActions(x,provider)+'</div></article>'}).join("")||empty("No orders yet","Customers can request a published service from Browse services. Requests and delivery updates will appear here.") )+'</div><p class="safety-note">Payment safety: EarnBridge currently records order terms and delivery status only. It does not hold funds, provide escrow, or confirm that a bank or M-Pesa payment has cleared.</p>');
+ $("#refresh-orders").onclick=orders;
+ document.querySelectorAll("[data-order-action]").forEach(b=>b.onclick=()=>handleOrderAction(mine.find(x=>x.id===b.dataset.id),b.dataset.orderAction));
+ document.querySelectorAll("[data-review]").forEach(b=>b.onclick=()=>reviewForm(mine.find(x=>x.id===b.dataset.review)));
+}
+function orderActions(x,provider){
+ let a="";
+ if(provider&&x.status==="requested")a+='<button class="btn btn-primary" data-order-action="accept" data-id="'+x.id+'">Accept</button><button class="btn btn-outline" data-order-action="cancel" data-id="'+x.id+'">Decline</button>';
+ if(provider&&x.status==="accepted")a+='<button class="btn btn-primary" data-order-action="start" data-id="'+x.id+'">Start work</button>';
+ if(provider&&x.status==="in_progress")a+='<button class="btn btn-primary" data-order-action="deliver" data-id="'+x.id+'">Submit delivery</button>';
+ if(!provider&&x.status==="requested")a+='<button class="btn btn-outline" data-order-action="cancel" data-id="'+x.id+'">Cancel request</button>';
+ if(!provider&&x.status==="delivered")a+='<button class="btn btn-primary" data-order-action="complete" data-id="'+x.id+'">Confirm completion</button><button class="btn btn-outline" data-order-action="dispute" data-id="'+x.id+'">Raise a dispute</button>';
+ if(x.status==="completed")a+='<button class="btn btn-outline" data-review="'+x.id+'">Leave a review</button>';
+ return a||'<span class="order-wait">Waiting for the '+(provider?"customer":"provider")+'…</span>';
+}
+async function handleOrderAction(x,action){
+ if(!x)return;
+ try{
+  let patch={};
+  if(action==="accept")patch.status="accepted";
+  if(action==="start")patch.status="in_progress";
+  if(action==="cancel"){if(!confirm("Cancel/decline this order request?"))return;patch.status="cancelled"}
+  if(action==="deliver"){const note=prompt("Describe what you delivered. Include handover details, but do not include confidential information.");if(!note?.trim())return toast("A delivery note is required.");patch.status="delivered";patch.delivery_note=note.trim()}
+  if(action==="complete"){if(!confirm("Confirm that the agreed work has been completed?"))return;patch.status="completed"}
+  if(action==="dispute"){const reason=prompt("Explain the problem with the delivery. This will be recorded for follow-up.");if(!reason?.trim())return toast("A reason is required.");patch.status="disputed";patch.dispute_reason=reason.trim()}
+  const {error}=await db.from("eb_orders").update(patch).eq("id",x.id);if(error)throw error;
+  toast("Order updated");orders();
+ }catch(e){fail(e)}
+}
+async function reviewForm(x){
+ const {data:existing,error}=await db.from("eb_reviews").select("id,reviewer_id").eq("order_id",x.id);if(error)return fail(error);
+ if((existing||[]).some(r=>r.reviewer_id===user.id))return toast("You have already reviewed this order.");
+ const reviewee=x.provider_id===user.id?x.customer_id:x.provider_id;
+ modal("Review completed order",'<form class="form-grid">'+selectField("Rating","rating",["5","4","3","2","1"],"5")+area("Share an honest review of the completed order","comment","",true)+submit("Publish review")+'</form>',async p=>{const {error}=await db.from("eb_reviews").insert({order_id:x.id,reviewer_id:user.id,reviewee_id:reviewee,rating:Number(p.rating),comment:p.comment});if(error)throw error;toast("Review published");orders()});
+}
+const earnBridgePriorRender=render;
+render=async function(){if(page==="passport"){try{await passport()}catch(e){shell(empty("Work Passport unavailable",e.message));console.error(e)}}else if(page==="orders"){try{await orders()}catch(e){shell(empty("Orders unavailable",e.message));console.error(e)}}else await earnBridgePriorRender()};
