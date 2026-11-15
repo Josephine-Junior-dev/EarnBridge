@@ -40,6 +40,7 @@ authForm.addEventListener("submit",async e=>{
   btn.disabled=false;btn.innerHTML=(mode==="signin"?"Sign in":"Create account")+' <span>→</span>';
  }
 });
+window.EB_AUTH_READY=true;
 async function ensureProfile(){const {data,error}=await db.from("eb_profiles").select("id").eq("id",user.id).maybeSingle();if(error)throw error;if(!data){const r=await db.from("eb_profiles").insert({id:user.id,full_name:user.user_metadata?.full_name||""});if(r.error)throw r.error}}
 function showAuth(){$("#auth").classList.remove("hidden");$("#app").classList.add("hidden");$("#logout").classList.add("hidden")}
 function showApp(){$("#auth").classList.add("hidden");$("#app").classList.remove("hidden");$("#logout").classList.remove("hidden");$("#user-label").textContent=user.email;render()}
