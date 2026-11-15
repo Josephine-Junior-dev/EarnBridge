@@ -88,7 +88,6 @@ else showAuth();
 /* Commercial marketplace and customer enquiry workflows */
 pages.marketplace=["Service marketplace","Discover providers and contact them directly"];
 pages.inbox=["Enquiries","Manage customer conversations and service requests"];
-}
 async function inbox(){
  const {data,error}=await db.from("eb_enquiries").select("*,eb_services(title,user_id)").order("created_at",{ascending:false});
  if(error)throw error;
