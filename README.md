@@ -35,3 +35,43 @@ Work records are self-reported until a genuine customer confirmation flow is imp
 - It does **not** collect or hold money. Do not describe it as escrow or payment protection. M-Pesa/card collection, provider payouts, verified payment webhooks, milestone escrow, dispute operations and admin tooling are separate production work.
 - Test with two different accounts. A single account cannot act as both customer and provider on one order.
 - Do not run the original `supabase.sql` again if the EarnBridge schema already exists; use the dedicated `commerce-core.sql` migration for this workflow.
+
+
+## SaaS workspace modules
+The current workspace includes:
+- Business centre for owner-managed business profiles.
+- Reports with real order/earnings totals, pipeline summaries and CSV export.
+- Free, Professional and Business plan pages with upgrade requests.
+- A restricted administration workspace for opportunity moderation, user/business counts, safety reports and plan-request review.
+- Marketplace provider profiles are loaded separately from services because the database uses auth-user references rather than a direct profile foreign key.
+
+### Required database setup
+Run these scripts in the SQL Editor of the existing Garage Operations Supabase project, in this order, if they have not already been run:
+1. `supabase.sql`
+2. `commerce-core.sql`
+3. `work-passport.sql`
+4. `saas-core.sql`
+
+Do not re-run the base schema on a live database without reviewing its policies first. The migrations are intended to create or extend only EarnBridge's `eb_` objects.
+
+### Granting platform administration
+Admin rights are not self-service. After the account has registered, an existing project owner must run a statement like this in Supabase SQL Editor, replacing the email with the exact admin account email:
+
+```sql
+insert into public.eb_admins(user_id, role)
+select id, 'admin' from auth.users where lower(email)=lower('YOUR-ADMIN-EMAIL')
+on conflict (user_id) do update set role='admin';
+```
+
+Do not expose admin privileges through browser-side code.
+
+### Payment and subscription status
+The plan page currently records upgrade requests only. It does not charge a card or initiate an M-Pesa STK push, and an approved request is not an active paid subscription. Live collection, payment verification, subscription activation, receipts and refunds require a trusted server-side payment integration and verified provider callbacks. Never write payment success from the browser.
+
+### Deployment and testing
+GitHub Pages serves the frontend after the repository commits finish deploying. Test with at least two separate user accounts:
+- Account A publishes a service.
+- Account B requests the service and sees it under Orders.
+- Account A accepts, starts and submits delivery.
+- Account B confirms completion or raises a dispute.
+- Both accounts check their own reports and records.
