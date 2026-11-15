@@ -237,7 +237,7 @@ async function admin(){
 }
 const earnBridgeRenderBeforeNewModules=render;
 render=async function(){
- const routes={businesses,reports,plans,admin};
+ const routes={marketplace,inbox,businesses,reports,plans,admin};
  if(routes[page]){shell('<div class="loading">Loading '+esc(pages[page][0])+'…</div>');try{await routes[page]()}catch(e){shell(empty("This section could not load",e.message));console.error(e)}}
  else await earnBridgeRenderBeforeNewModules();
 };
