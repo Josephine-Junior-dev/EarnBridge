@@ -174,3 +174,86 @@ async function reviewForm(x){
 }
 const earnBridgePriorRender=render;
 render=async function(){if(page==="passport"){try{await passport()}catch(e){shell(empty("Work Passport unavailable",e.message));console.error(e)}}else if(page==="orders"){try{await orders()}catch(e){shell(empty("Orders unavailable",e.message));console.error(e)}}else await earnBridgePriorRender()};
+
+
+/* EARNBRIDGE SAAS MODULES — business records, reports, plans and protected admin */
+pages.businesses=["Business centre","Manage the businesses connected to your EarnBridge account."];
+pages.reports=["Business reports","Understand your pipeline, orders and income using your actual records."];
+pages.plans=["Plans & billing","Choose the EarnBridge workspace level that matches your business."];
+pages.admin=["Platform administration","Moderate the marketplace and oversee platform operations."];
+
+async function businesses(){
+ const {data,error}=await db.from("eb_businesses").select("*").order("created_at",{ascending:false});
+ if(error)throw error;
+ const rows=data||[];
+ shell('<div class="toolbar"><p class="toolbar-note">Create a business profile to connect services, customer enquiries and orders.</p><button class="btn btn-primary" id="business-add">＋ Add business</button></div><div class="business-grid">'+(rows.map(x=>'<article class="business-card"><div class="business-card-head"><span class="business-avatar">'+esc((x.business_name||"B").slice(0,1).toUpperCase())+'</span><span class="tag '+(x.verification_status==="verified"?"tag-green":"tag-amber")+'">'+esc(x.verification_status)+'</span></div><h3>'+esc(x.business_name)+'</h3><p>'+esc(x.industry||"Industry not set")+'</p><p>'+esc(x.description||"Add a description to help customers understand your business.")+'</p><div class="business-meta">'+esc([x.city,x.country].filter(Boolean).join(", ")||"Location not set")+'</div><div class="business-actions">'+actionButtons(x.id)+'</div></article>').join("")||empty("No business profiles yet","Add your business name, industry and location to start organising your work.") )+'</div>');
+ $("#business-add").onclick=()=>businessForm();
+ document.querySelectorAll("[data-edit]").forEach(b=>b.onclick=()=>businessForm(rows.find(x=>x.id===b.dataset.edit)));
+ bindDelete("eb_businesses",businesses);
+}
+function businessForm(x={}){
+ modal(x.id?"Edit business":"Add a business",'<form class="form-grid">'+field("Business name","business_name","text",x.business_name,true)+field("Industry","industry","text",x.industry)+field("Country","country","text",x.country||"Kenya")+field("City / town","city","text",x.city)+field("Website","website_url","url",x.website_url)+area("Business description","description",x.description||"")+submit("Save business")+'</form>',async p=>{p.owner_id=user.id;const q=x.id?db.from("eb_businesses").update(p).eq("id",x.id):db.from("eb_businesses").insert(p);const {error}=await q;if(error)throw error;toast("Business profile saved");businesses()});
+}
+
+async function reports(){
+ const [ordersR,earnR,leadsR,servicesR]=await Promise.all([
+  db.from("eb_orders").select("*").order("created_at",{ascending:false}),
+  db.from("eb_earnings").select("*").order("earning_date",{ascending:false}),
+  db.from("eb_customer_leads").select("*").order("created_at",{ascending:false}),
+  db.from("eb_services").select("id,status")
+ ]);
+ for(const r of [ordersR,earnR,leadsR,servicesR])if(r.error)throw r.error;
+ const orders=(ordersR.data||[]).filter(x=>x.provider_id===user.id||x.customer_id===user.id);
+ const earnings=earnR.data||[],leads=leadsR.data||[],services=servicesR.data||[];
+ const completed=orders.filter(x=>x.status==="completed"),pending=orders.filter(x=>!["completed","cancelled"].includes(x.status));
+ const received=earnings.filter(x=>x.payment_status==="received").reduce((s,x)=>s+Number(x.amount||0),0);
+ const awaiting=earnings.filter(x=>x.payment_status==="pending").reduce((s,x)=>s+Number(x.amount||0),0);
+ const orderValue=completed.filter(x=>x.provider_id===user.id).reduce((s,x)=>s+Number(x.amount||0),0);
+ const stages=["new","contacted","qualified","proposal_sent","won","lost"];
+ const stageHtml=stages.map(s=>{const n=leads.filter(x=>x.stage===s).length;return '<div class="report-stage"><span>'+s.replaceAll("_"," ")+'</span><div class="report-track"><i style="width:'+(leads.length?Math.max(3,n/leads.length*100):0)+'%"></i></div><b>'+n+'</b></div>'}).join("");
+ const csvRows=[["Record","Date","Status","Description","Amount","Currency"],...orders.map(x=>["Order",x.created_at,x.status,x.title,x.amount,x.currency]),...earnings.map(x=>["Earning",x.earning_date,x.payment_status,x.description,x.amount,x.currency])];
+ const csv=csvRows.map(row=>row.map(v=>'"'+String(v??"").replaceAll('"','""')+'"').join(",")).join("\\r\\n");
+ shell('<div class="stats-grid">'+stat("Income received",money(received),"Confirmed earning entries","↗")+stat("Awaiting payment",money(awaiting),"Pending earning entries","◷")+stat("Completed order value",money(orderValue),"Provider-side completed orders","▤")+stat("Open orders",pending.length,"Orders still in progress","◎")+'</div><div class="report-grid"><section class="report-panel"><div class="section-row"><div><h2>Customer pipeline</h2><p>Leads grouped by their current stage.</p></div></div>'+(leads.length?stageHtml:empty("No pipeline data","Add customer leads to see your sales pipeline."))+'</section><section class="report-panel"><div class="section-row"><div><h2>Marketplace activity</h2><p>Your published and draft services.</p></div></div><div class="report-kpis"><div><b>'+services.filter(x=>x.status==="published").length+'</b><span>Published services</span></div><div><b>'+services.length+'</b><span>Total services</span></div><div><b>'+completed.length+'</b><span>Completed orders</span></div></div></section></div><div class="toolbar"><div><h2>Download your records</h2><p class="toolbar-note">CSV export for spreadsheet analysis and bookkeeping.</p></div><button class="btn btn-primary" id="report-export">↓ Export CSV</button></div><div class="table-card"><div class="table-scroll"><table><thead><tr><th>Type</th><th>Description</th><th>Date</th><th>Status</th><th>Amount</th></tr></thead><tbody>'+([...orders.map(x=>({kind:"Order",description:x.title,date:x.created_at,status:x.status,amount:x.amount,currency:x.currency})),...earnings.map(x=>({kind:"Earning",description:x.description,date:x.earning_date,status:x.payment_status,amount:x.amount,currency:x.currency}))].slice(0,40).map(x=>'<tr><td>'+x.kind+'</td><td>'+esc(x.description)+'</td><td>'+esc(String(x.date).slice(0,10))+'</td><td>'+esc(x.status)+'</td><td>'+money(x.amount,x.currency)+'</td></tr>').join("")||'<tr><td colspan="5">No financial records yet.</td></tr>')+'</tbody></table></div></div>');
+ $("#report-export").onclick=()=>{const blob=new Blob([csv],{type:"text/csv;charset=utf-8"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="earnbridge-business-report.csv";a.click();URL.revokeObjectURL(url)};
+}
+
+async function plans(){
+ const [subR,reqR]=await Promise.all([
+  db.from("eb_subscriptions").select("*").order("created_at",{ascending:false}).limit(1),
+  db.from("eb_plan_requests").select("*").order("created_at",{ascending:false})
+ ]);
+ if(subR.error)throw subR.error;if(reqR.error)throw reqR.error;
+ const active=(subR.data||[]).find(x=>x.user_id===user.id&&x.status==="active");
+ const reqs=(reqR.data||[]).filter(x=>x.user_id===user.id);
+ const current=active?.plan_code||"free";
+ const planCard=(code,title,price,desc,features)=>'<article class="plan-card '+(current===code?"plan-current":"")+'"><span class="plan-label">'+(current===code?"CURRENT PLAN":code==="pro"?"MOST POPULAR":"FOR TEAMS")+'</span><h3>'+title+'</h3><div class="plan-price">'+price+'<small>/ month</small></div><p>'+desc+'</p><ul>'+features.map(f=>'<li>✓ '+f+'</li>').join("")+'</ul>'+(code==="free"?'<button class="btn btn-outline" disabled>Included for every account</button>':'<button class="btn btn-primary" data-request-plan="'+code+'">Request '+title+'</button>')+'</article>';
+ shell('<div class="current-plan-banner"><div><span class="eyebrow">YOUR CURRENT ACCESS</span><h2>'+current.toUpperCase()+' PLAN</h2><p>'+(active?"Subscription status: "+esc(active.status):"You are currently using the free workspace.")+'</p></div><span class="tag tag-green">Account active</span></div><div class="plan-grid">'+planCard("free","Free","KSh 0","Start building your professional presence.",["Profile and skills","Browse opportunities","Basic service listing","Customer lead tracking","Basic earnings records"])+planCard("pro","Professional","KSh 999","For freelancers and growing independent businesses.",["Everything in Free","Expanded service listings","Advanced sales reports","More customer pipeline records","Priority workspace tools"])+planCard("business","Business","KSh 2,999","For teams managing multiple customers and orders.",["Everything in Professional","Business profiles and team workflows","Advanced order management","Exportable business reports","Priority platform support"])+'</div><section class="report-panel"><h2>Plan requests</h2><p>Requesting an upgrade does not charge you or activate a paid plan. Payment collection and automated activation will be connected only after secure payment processing is configured.</p><div class="list-cards">'+(reqs.map(x=>'<div class="list-card"><div><b>'+esc(x.requested_plan.toUpperCase())+' plan</b><p>'+esc(x.billing_cycle)+' billing · '+new Date(x.created_at).toLocaleDateString()+'</p></div><span class="tag '+(x.status==="approved"?"tag-green":x.status==="rejected"?"tag-amber":"tag-blue")+'">'+esc(x.status)+'</span></div>').join("")||empty("No upgrade requests","Your requests will appear here."))+'</div></section>');
+ document.querySelectorAll("[data-request-plan]").forEach(b=>b.onclick=async()=>{const plan=b.dataset.requestPlan;if(reqs.some(x=>x.requested_plan===plan&&x.status==="pending"))return toast("You already have a pending request for this plan.");const {error}=await db.from("eb_plan_requests").insert({user_id:user.id,requested_plan:plan,billing_cycle:"monthly",status:"pending"});if(error)return fail(error);toast("Upgrade request submitted. No payment has been taken.");plans()});
+}
+
+async function admin(){
+ const {data:adminRow,error:adminError}=await db.from("eb_admins").select("role").eq("user_id",user.id).maybeSingle();
+ if(adminError)throw adminError;
+ if(!adminRow){shell(empty("Restricted area","This account does not have platform administration permission."));return}
+ const [profilesR,businessR,oppR,reportsR,requestsR,subsR]=await Promise.all([
+  db.from("eb_profiles").select("id",{count:"exact",head:true}),
+  db.from("eb_businesses").select("id",{count:"exact",head:true}),
+  db.from("eb_opportunities").select("*").order("created_at",{ascending:false}).limit(30),
+  db.from("eb_reports").select("*").order("created_at",{ascending:false}).limit(30),
+  db.from("eb_plan_requests").select("*").order("created_at",{ascending:false}).limit(30),
+  db.from("eb_subscriptions").select("*").order("created_at",{ascending:false}).limit(30)
+ ]);
+ for(const r of [profilesR,businessR,oppR,reportsR,requestsR,subsR])if(r.error)throw r.error;
+ const opps=oppR.data||[],reports=reportsR.data||[],requests=requestsR.data||[],subs=subsR.data||[];
+ shell('<div class="stats-grid">'+stat("Registered profiles",profilesR.count??0,"Platform accounts","◎")+stat("Business profiles",businessR.count??0,"Businesses on EarnBridge","▦")+stat("Open reports",reports.filter(x=>x.status==="open").length,"Awaiting moderation","⚑")+stat("Plan requests",requests.filter(x=>x.status==="pending").length,"Awaiting review","↗")+'</div><div class="admin-grid"><section class="report-panel"><h2>Opportunity moderation</h2><p>Review public listings. Unverified listings must not be presented as verified.</p><div class="list-cards">'+(opps.map(x=>'<div class="list-card"><div><b>'+esc(x.title)+'</b><p>'+esc(x.organization||"Independent")+' · '+esc(x.verification_status)+' · '+esc(x.status)+'</p></div><div class="admin-actions"><select data-opp-status="'+x.id+'"><option value="published" '+(x.status==="published"?"selected":"")+'>Published</option><option value="closed" '+(x.status==="closed"?"selected":"")+'>Closed</option><option value="archived" '+(x.status==="archived"?"selected":"")+'>Archived</option></select><select data-opp-verify="'+x.id+'"><option value="unverified">Unverified</option><option value="reviewing">Reviewing</option><option value="verified">Verified</option><option value="rejected">Rejected</option></select></div></div>').join("")||empty("No opportunity listings") )+'</div></section><section class="report-panel"><h2>Reports & safety</h2><div class="list-cards">'+(reports.map(x=>'<div class="list-card"><div><b>'+esc(x.target_type)+' report</b><p>'+esc(x.reason)+' · '+esc(x.status)+'</p><small>'+new Date(x.created_at).toLocaleString()+'</small></div><select data-report-status="'+x.id+'"><option value="open">Open</option><option value="reviewing">Reviewing</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option></select></div>').join("")||empty("No reports submitted") )+'</div></section><section class="report-panel"><h2>Subscription requests</h2><p>Approval here is administrative review only. It does not activate a paid subscription or confirm payment.</p><div class="list-cards">'+(requests.map(x=>'<div class="list-card"><div><b>'+esc(x.requested_plan.toUpperCase())+' · '+esc(x.billing_cycle)+'</b><p>User: '+esc(x.user_id.slice(0,8))+' · '+esc(x.status)+'</p></div><select data-plan-status="'+x.id+'"><option value="pending">Pending</option><option value="approved">Approved for follow-up</option><option value="rejected">Rejected</option></select></div>').join("")||empty("No plan requests") )+'</div></section><section class="report-panel"><h2>Subscription records</h2><p>Read-only subscription records. Paid status must only be set by a verified payment backend.</p><div class="list-cards">'+(subs.map(x=>'<div class="list-card"><div><b>'+esc(x.plan_code.toUpperCase())+'</b><p>'+esc(x.status)+' · '+esc(x.user_id.slice(0,8))+'</p></div><span class="tag tag-blue">'+esc(x.provider||"Manual")+'</span></div>').join("")||empty("No subscriptions yet") )+'</div></section></div><p class="safety-note">Admin access is granted manually in Supabase. Never grant yourself admin access from the browser.</p>');
+ document.querySelectorAll("[data-opp-status]").forEach(s=>s.onchange=async()=>{const x=opps.find(o=>o.id===s.dataset.oppStatus);const {error}=await db.from("eb_opportunities").update({status:s.value}).eq("id",x.id);if(error)return fail(error);toast("Listing status updated")});
+ document.querySelectorAll("[data-opp-verify]").forEach(s=>{const x=opps.find(o=>o.id===s.dataset.oppVerify);s.value=x.verification_status;s.onchange=async()=>{const {error}=await db.from("eb_opportunities").update({verification_status:s.value}).eq("id",x.id);if(error)return fail(error);toast("Verification status updated")}});
+ document.querySelectorAll("[data-report-status]").forEach(s=>{const x=reports.find(o=>o.id===s.dataset.reportStatus);s.value=x.status;s.onchange=async()=>{const {error}=await db.from("eb_reports").update({status:s.value}).eq("id",x.id);if(error)return fail(error);toast("Report status updated")}});
+ document.querySelectorAll("[data-plan-status]").forEach(s=>{const x=requests.find(o=>o.id===s.dataset.planStatus);s.value=x.status;s.onchange=async()=>{const {error}=await db.from("eb_plan_requests").update({status:s.value,reviewed_by:user.id,reviewed_at:new Date().toISOString()}).eq("id",x.id);if(error)return fail(error);toast("Plan request reviewed")}})
+}
+const earnBridgeRenderBeforeNewModules=render;
+render=async function(){
+ const routes={businesses,reports,plans,admin};
+ if(routes[page]){shell('<div class="loading">Loading '+esc(pages[page][0])+'…</div>');try{await routes[page]()}catch(e){shell(empty("This section could not load",e.message));console.error(e)}}
+ else await earnBridgeRenderBeforeNewModules();
+};
