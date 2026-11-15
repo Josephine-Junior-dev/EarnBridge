@@ -10,7 +10,36 @@ function toast(t){const e=$("#toast");e.textContent=t;e.classList.add("show");cl
 function fail(e){console.error(e);toast(e.message||"Something went wrong")}
 function setMode(m){mode=m;document.querySelectorAll("[data-mode]").forEach(x=>x.classList.toggle("selected",x.dataset.mode===m));$("#name-row").classList.toggle("hidden",m!=="signup");$("#auth-title").textContent=m==="signin"?"Welcome back":"Create your EarnBridge account";$("#auth-submit").textContent=m==="signin"?"Sign in":"Create account";$("#auth-error").textContent=""}
 document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
-$("#auth-form").onsubmit=async e=>{e.preventDefault();const btn=$("#auth-submit");btn.disabled=true;try{const email=$("#email").value.trim(),password=$("#password").value;const r=mode==="signup"?await db.auth.signUp({email,password,options:{data:{full_name:$("#full-name").value.trim()}}}):await db.auth.signInWithPassword({email,password});if(r.error)throw r.error;if(r.data.session){user=r.data.user;await ensureProfile();showApp()}else $("#auth-error").textContent="Account created. Check your email for the confirmation link, then sign in."}catch(x){$("#auth-error").textContent=x.message}finally{btn.disabled=false}};
+const authForm=$("#auth-form");
+authForm.addEventListener("submit",async e=>{
+ e.preventDefault();e.stopPropagation();
+ const btn=$("#auth-submit"),err=$("#auth-error"),note=$("#auth-note");
+ const email=$("#email").value.trim().toLowerCase(),password=$("#password").value;
+ err.textContent="";
+ if(!email||!password){err.textContent="Enter your email address and password.";return}
+ btn.disabled=true;btn.textContent=mode==="signin"?"Signing in…":"Creating account…";
+ note.textContent="Connecting securely to EarnBridge…";
+ try{
+  const result=mode==="signup"
+   ?await db.auth.signUp({email,password,options:{data:{full_name:$("#full-name").value.trim()}}})
+   :await db.auth.signInWithPassword({email,password});
+  if(result.error)throw result.error;
+  if(result.data?.session&&result.data?.user){
+   user=result.data.user;await ensureProfile();showApp();
+  }else if(mode==="signup"){
+   note.textContent="Check your inbox for the confirmation email.";
+   err.textContent="Account created. Confirm your email, then return here and sign in.";
+  }else{
+   err.textContent="No active session was returned. Check your Supabase Auth settings and try again.";
+  }
+ }catch(x){
+  console.error("EarnBridge authentication failed:",x);
+  err.textContent=x?.message||"Sign-in failed. Please try again.";
+  note.textContent="Please check your details and try again.";
+ }finally{
+  btn.disabled=false;btn.innerHTML=(mode==="signin"?"Sign in":"Create account")+' <span>→</span>';
+ }
+});
 async function ensureProfile(){const {data,error}=await db.from("eb_profiles").select("id").eq("id",user.id).maybeSingle();if(error)throw error;if(!data){const r=await db.from("eb_profiles").insert({id:user.id,full_name:user.user_metadata?.full_name||""});if(r.error)throw r.error}}
 function showAuth(){$("#auth").classList.remove("hidden");$("#app").classList.add("hidden");$("#logout").classList.add("hidden")}
 function showApp(){$("#auth").classList.add("hidden");$("#app").classList.remove("hidden");$("#logout").classList.remove("hidden");$("#user-label").textContent=user.email;render()}
