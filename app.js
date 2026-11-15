@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm";
 import {APP_CONFIG} from "./config.js";
 const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.supabaseAnonKey),$=s=>document.querySelector(s);
 let user=null,mode="signin",page="overview",cache={};
