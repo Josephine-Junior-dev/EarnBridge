@@ -3,8 +3,7 @@ Turn Your Skills Into Income.
 
 EarnBridge is a mobile-first income opportunity and service platform.
 
-## Supabase
-This app reuses the existing Garage Operations Pro Supabase project and its browser publishable key, centralized in config.js. All EarnBridge records use eb_-prefixed tables and their own RLS policies. This is logical separation inside a shared database, not physical database isolation.
+## .
 
 ## Setup
 1. Open the existing Garage Operations Supabase project SQL Editor.
