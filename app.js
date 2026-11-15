@@ -49,3 +49,31 @@ async function profile(){const [pr,sk]=await Promise.all([db.from("eb_profiles")
 document.addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)go(b.dataset.go)});
 db.auth.onAuthStateChange((_event,session)=>{if(session?.user){user=session.user;showApp()}else{user=null;showAuth()}});
 const {data:{session}}=await db.auth.getSession();if(session?.user){user=session.user;try{await ensureProfile();showApp()}catch(e){fail(e);showApp()}}else showAuth();
+
+
+/* Commercial marketplace and customer enquiry workflows */
+pages.marketplace=["Service marketplace","Discover providers and contact them directly"];
+pages.inbox=["Enquiries","Manage customer conversations and service requests"];
+async function marketplace(){
+ const {data,error}=await db.from("eb_services").select("*,eb_profiles(full_name,headline,country,city)").eq("status","published").neq("user_id",user.id).order("created_at",{ascending:false});
+ if(error)throw error;
+ const rows=data||[];
+ shell('<div class="toolbar"><input id="market-search" placeholder="Search services, skills or providers…"><span class="toolbar-note">'+rows.length+' services available</span></div><div class="service-grid" id="market-grid">'+(rows.map(x=>'<div class="service-card"><div class="service-card-top"><span class="tag tag-green">'+esc(x.category||"Service")+'</span><span class="tag tag-blue">'+esc(x.eb_profiles?.country||"Global")+'</span></div><div class="service-symbol">✦</div><h3>'+esc(x.title)+'</h3><p>'+esc(x.description)+'</p><div class="service-bottom"><strong>'+(x.price==null?"Contact for price":money(x.price,x.currency))+'</strong><span>'+esc(x.pricing_type.replaceAll("_"," "))+'</span></div><small>By '+esc(x.eb_profiles?.full_name||"EarnBridge provider")+' · '+esc(x.eb_profiles?.headline||"Independent professional")+'</small><button class="btn btn-primary full-btn" style="margin-top:14px" data-contact="'+x.id+'">Contact provider →</button></div>').join("")||empty("No services published yet","Published services from other EarnBridge members will appear here.") )+'</div>');
+ $("#market-search").oninput=e=>document.querySelectorAll("#market-grid .service-card").forEach(c=>c.hidden=!c.textContent.toLowerCase().includes(e.target.value.toLowerCase()));
+ document.querySelectorAll("[data-contact]").forEach(b=>b.onclick=()=>{const x=rows.find(z=>z.id===b.dataset.contact);modal("Contact "+esc(x.title),'<form class="form-grid">'+area("Tell the provider what you need","message","",true)+field("Your budget (optional)","budget","number","",false,'min="0" step="0.01"')+selectField("Currency","currency",["KES","USD","GBP","EUR","UGX","TZS"],"KES")+submit("Send enquiry")+'</form>',async p=>{p.service_id=x.id;p.provider_id=x.user_id;p.customer_id=user.id;p.budget=p.budget?Number(p.budget):null;const {error}=await db.from("eb_enquiries").insert(p);if(error)throw error;toast("Enquiry sent to provider");go("inbox")})});
+}
+async function inbox(){
+ const {data,error}=await db.from("eb_enquiries").select("*,eb_services(title,user_id)").order("created_at",{ascending:false});
+ if(error)throw error;
+ const rows=data||[];
+ $("#inbox-count").textContent=rows.filter(x=>x.provider_id===user.id&&x.status==="new").length;
+ $("#inbox-count").classList.toggle("hidden",!rows.some(x=>x.provider_id===user.id&&x.status==="new"));
+ shell('<div class="toolbar"><span class="toolbar-note">Messages and service requests linked to your account.</span></div><div class="list-cards">'+(rows.map(x=>'<div class="list-card"><div><span class="tag '+(x.status==="new"?"tag-amber":"tag-green")+'">'+esc(x.status)+'</span><h3>'+esc(x.eb_services?.title||"Service enquiry")+'</h3><p>'+esc(x.message)+'</p><small>'+new Date(x.created_at).toLocaleString()+' · '+(x.provider_id===user.id?"Customer enquiry":"Your request")+'</small></div>'+(x.provider_id===user.id?'<select class="status-select" data-enquiry-status="'+x.id+'">'+["new","replied","converted","declined","closed"].map(v=>'<option value="'+v+'" '+(v===x.status?"selected":"")+'>'+v+'</option>').join("")+'</select>':'<span class="tag tag-blue">Sent by you</span>')+'</div>').join("")||empty("No enquiries yet","When customers contact you or you contact a provider, conversations will appear here.") )+'</div>');
+ document.querySelectorAll("[data-enquiry-status]").forEach(s=>s.onchange=async()=>{const {error}=await db.from("eb_enquiries").update({status:s.value}).eq("id",s.dataset.enquiryStatus);if(error)return fail(error);toast("Enquiry status updated");inbox()});
+}
+async function render(){
+ shell('<div class="loading">Loading your workspace…</div>');
+ try{const routes={overview,opportunities,marketplace,services,leads,inbox,applications,skills,earnings,assistant,profile};if(!routes[page])throw new Error("This workspace section is not available.");await routes[page]();}
+ catch(e){shell(empty("We couldn't load this section",e.message));console.error(e)}
+}
+$("#mobile-logout").onclick=async()=>{await db.auth.signOut();user=null;showAuth()};
