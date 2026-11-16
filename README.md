@@ -108,7 +108,7 @@ The function checks the signed-in worker owns the record, creates a random one-t
 
 ### Important trust boundary
 
-The new badge means the confirmation link was used by someone with access to the customer email inbox. It does not independently establish the customer's legal identity, the quality of the work, payment, or professional licensing. Collusion and false customer email addresses remain possible and need additional anti-fraud controls before any guarantee is marketed.
+The public Work Passport at `passport.html?id=<profile-id>` displays only public profile fields, listed skills and customer-confirmed work. It deliberately excludes customer names/emails, job amounts and private evidence paths. The signed-in owner can copy the public link or display a QR code from Work Passport.\n\nThe new badge means the confirmation link was used by someone with access to the customer email inbox. It does not independently establish the customer's legal identity, the quality of the work, payment, or professional licensing. Collusion and false customer email addresses remain possible and need additional anti-fraud controls before any guarantee is marketed.
 
 ### Test the complete flow
 
