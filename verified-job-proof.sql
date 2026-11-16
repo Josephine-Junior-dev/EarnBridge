@@ -91,9 +91,9 @@ begin
     set consumed_at = now()
     where record_id = p_record_id and consumed_at is null;
 
-  v_token := encode(extensions.gen_random_bytes(32), 'hex');
+  v_token := encode(gen_random_bytes(32), 'hex');
   insert into public.eb_work_confirmations(record_id, owner_id, customer_email, token_hash, expires_at)
-    values (v_record.id, v_record.owner_id, lower(v_record.client_email), encode(extensions.digest(v_token, 'sha256'), 'hex'), now() + interval '7 days');
+    values (v_record.id, v_record.owner_id, lower(v_record.client_email), encode(digest(v_token, 'sha256'), 'hex'), now() + interval '7 days');
 
   update public.eb_work_records set status = 'submitted', updated_at = now()
     where id = p_record_id;
@@ -134,7 +134,7 @@ begin
 
   select * into v_confirmation
     from public.eb_work_confirmations
-    where token_hash = encode(extensions.digest(p_token, 'sha256'), 'hex')
+    where token_hash = encode(digest(p_token, 'sha256'), 'hex')
     for update;
 
   if not found or v_confirmation.consumed_at is not null or v_confirmation.expires_at < now() then
