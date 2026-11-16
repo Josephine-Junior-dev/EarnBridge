@@ -75,3 +75,56 @@ GitHub Pages serves the frontend after the repository commits finish deploying. 
 - Account A accepts, starts and submits delivery.
 - Account B confirms completion or raises a dispute.
 - Both accounts check their own reports and records.
+
+
+## Verified Job Proof and customer confirmation (new)
+
+This module adds private work evidence and customer-email confirmation to Work Passport.
+
+### Database migration
+
+After the existing EarnBridge migrations have been applied, run `verified-job-proof.sql` in the SQL Editor of the same Garage Operations Supabase project. It:
+- Removes direct worker privileges to set a work record to `verified`.
+- Allows workers to create and edit only self-reported work details.
+- Stores verification requests and immutable customer-response events.
+- Creates a private `eb-work-evidence` Storage bucket with owner-folder policies.
+- Adds a single-use, seven-day customer confirmation RPC.
+
+Do not skip this migration. The older `work-passport.sql` by itself does not enforce customer confirmation.
+
+### Deploy the confirmation email function
+
+The repository includes `supabase/functions/send-job-confirmation/index.ts`. Deploy it as the Supabase Edge Function named `send-job-confirmation` with JWT verification enabled.
+
+Configure these Edge Function secrets:
+- `SUPABASE_URL`
+- `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-side secret only; never put this in config.js or browser code)
+- `RESEND_API_KEY`
+- `EARNBRIDGE_SITE_URL` (the deployed EarnBridge GitHub Pages base URL, without a trailing slash)
+- `EMAIL_FROM` (a verified sender address in Resend)
+
+The function checks the signed-in worker owns the record, creates a random one-time confirmation token on the server, and emails the customer a link to `confirm.html`. The raw token is never returned to the worker's browser. The customer can confirm or reject without creating an EarnBridge account.
+
+### Important trust boundary
+
+The new badge means the confirmation link was used by someone with access to the customer email inbox. It does not independently establish the customer's legal identity, the quality of the work, payment, or professional licensing. Collusion and false customer email addresses remain possible and need additional anti-fraud controls before any guarantee is marketed.
+
+### Test the complete flow
+
+1. Apply `verified-job-proof.sql`.
+2. Deploy the Edge Function and configure the six secrets above.
+3. Sign in to EarnBridge and open **Work Passport**.
+4. Add a test work record using an email inbox you control separately from the worker account.
+5. Attach a small JPG/PNG/PDF evidence file and save.
+6. Choose **Email customer to confirm**.
+7. Open the email in the separate customer inbox and confirm or reject.
+8. Return to Work Passport and check the status and verification history.
+
+If email delivery is not configured, the request button will return a clear setup error. Do not manually mark records as verified.
+
+## Commercial readiness notes
+
+The existing workspace already contains the marketplace, opportunities, service catalogue, customer leads/enquiries, order workflow, businesses, reports, earnings ledger and plan-request pages. Those are functional foundations, not proof that every SaaS capability is production-complete.
+
+Live M-Pesa/card collection, escrow, milestone fund release, automatic subscription billing, refunds, automated matching and formal identity checks are not enabled by this commit. Upgrade requests do not collect money or activate paid access.
