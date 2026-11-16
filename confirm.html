@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#102a22"><title>Confirm completed work | EarnBridge</title><link rel="stylesheet" href="./styles.css"></head>
+<body><header class="top"><a class="brand" href="./"><span class="brand-mark">e<span>+</span></span><span class="brand-name">earnbridge<small>VERIFIED WORK</small></span></a></header>
+<main style="max-width:720px;margin:55px auto;padding:18px"><section class="auth-card"><span class="eyebrow">CUSTOMER CONFIRMATION</span><h1 style="font:800 30px Manrope;margin:14px 0">Review completed work</h1><p style="color:#718078;line-height:1.7">Your response helps keep work records trustworthy. Confirm only if the work described was genuinely completed for you.</p>
+<div id="state" class="loading">Checking your secure confirmation link…</div>
+<form id="confirm-form" class="hidden"><label class="field"><span>Your decision</span><select name="decision" required><option value="confirmed">Yes, this work was completed</option><option value="rejected">No, I cannot confirm this work</option></select></label><label class="field"><span>Rating (optional)</span><select name="rating"><option value="">No rating</option><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Satisfactory</option><option value="2">2 — Poor</option><option value="1">1 — Very poor</option></select></label><label class="field"><span>Feedback (optional)</span><textarea name="feedback" maxlength="1000" placeholder="Add a short note about the work"></textarea></label><button class="btn btn-primary full-btn" type="submit">Submit my response</button></form>
+<div id="done" class="hidden"></div></section></main>
+<script type="module">
+import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/+esm";
+import { APP_CONFIG } from "./config.js";
+const db=createClient(APP_CONFIG.supabaseUrl,APP_CONFIG.supabaseAnonKey);
+const token=new URLSearchParams(location.search).get("token");
+const state=document.querySelector("#state"),form=document.querySelector("#confirm-form"),done=document.querySelector("#done");
+if(!token){state.textContent="This confirmation link is missing or invalid."; }
+else {state.textContent="Your secure link is ready. Review the form below.";form.classList.remove("hidden");}
+form.addEventListener("submit",async e=>{
+ e.preventDefault();const btn=form.querySelector("button");btn.disabled=true;btn.textContent="Submitting…";
+ const values=Object.fromEntries(new FormData(form));const rating=values.rating?Number(values.rating):null;
+ const {data,error}=await db.rpc("eb_confirm_work_record",{p_token:token,p_decision:values.decision,p_feedback:values.feedback||null,p_rating:rating});
+ form.classList.add("hidden");
+ if(error){done.textContent=error.message;done.className="safety-note";}
+ else {done.textContent=values.decision==="confirmed"?"Thank you. Your confirmation has been securely recorded.":"Thank you. Your response has been recorded and the work record will not show as verified.";done.className="empty-state";}
+ done.classList.remove("hidden");
+});
+</script></body></html>
