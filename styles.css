@@ -64,3 +64,13 @@ main{min-height:calc(100vh - 120px)}.auth{max-width:1260px;min-height:calc(100vh
 .form-hint{font-size:10px;line-height:1.6;color:var(--muted);background:#f3f8f4;padding:11px;border-radius:9px}
 @media(max-width:650px){.proof-card{display:block}.proof-card .work-record-actions{margin-top:15px;min-width:0}.proof-card .work-record-actions .btn{width:100%}}
 @media print{.top,.sidebar,.toolbar,.side-bottom,#site-footer,.work-record-actions{display:none!important}.app-shell{display:block}.page-content{padding:0}.proof-card{break-inside:avoid;box-shadow:none}}
+
+/* Career selector and searchable skills directory */
+.directory-panel{margin-top:24px;padding:20px;border:1px solid var(--line);border-radius:16px;background:#fff}
+.directory-panel h3{margin:0 0 8px;font:800 16px Manrope}
+.directory-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.directory-chips .chip{border:1px solid var(--line);background:#f5faf6;border-radius:999px;padding:9px 13px;color:var(--green);font:700 11px inherit;cursor:pointer}
+.directory-chips .chip:active{transform:scale(.98)}
+.skill-card small.muted{display:block;margin:8px 0;color:var(--muted);font-size:10px}
+#skill-filter{max-width:320px;margin-top:8px}
+@media(max-width:650px){.directory-panel{padding:15px}.directory-chips .chip{font-size:10px}}
