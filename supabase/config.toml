@@ -1,0 +1,4 @@
+project_id = "ptluwoeogfkqavhspdjj"
+
+[functions.send-job-confirmation]
+verify_jwt = true
