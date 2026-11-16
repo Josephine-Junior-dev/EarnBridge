@@ -82,7 +82,7 @@ returns table(token text, customer_email text, project_title text)
 language plpgsql
 security definer
 set search_path = public, extensions
-as $
+as $$
 declare
   v_record public.eb_work_records%rowtype;
   v_token text;
@@ -131,7 +131,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = public, extensions
-as $
+as $$
 declare
   v_confirmation public.eb_work_confirmations%rowtype;
   v_status text;
@@ -218,7 +218,7 @@ language plpgsql
 stable
 security definer
 set search_path = public, extensions
-as $
+as $$
 declare
   v_result jsonb;
 begin
@@ -261,7 +261,7 @@ begin
   end if;
   return v_result;
 end;
-$;
+$$;
 
 revoke all on function public.eb_get_public_passport(uuid) from public;
 grant execute on function public.eb_get_public_passport(uuid) to anon, authenticated;
@@ -277,7 +277,7 @@ language plpgsql
 stable
 security definer
 set search_path = public, extensions
-as $
+as $$
 declare v_result jsonb;
 begin
   select jsonb_build_object(
@@ -308,7 +308,7 @@ begin
   if v_result is null then return jsonb_build_object('error','This Work Passport is private or unavailable.'); end if;
   return v_result;
 end;
-$;
+$$;
 revoke all on function public.eb_get_public_passport(uuid) from public;
 grant execute on function public.eb_get_public_passport(uuid) to anon, authenticated;
 
