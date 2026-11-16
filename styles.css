@@ -51,3 +51,16 @@ main{min-height:calc(100vh - 120px)}.auth{max-width:1260px;min-height:calc(100vh
 .admin-grid{grid-template-columns:1fr 1fr}.admin-actions{display:flex;gap:6px;flex-wrap:wrap}.admin-actions select,.list-card select{max-width:145px;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff;font-size:10px}
 .full-btn{width:100%}
 @media(max-width:760px){.business-grid,.plan-grid,.report-grid,.admin-grid{grid-template-columns:1fr}.current-plan-banner{align-items:flex-start;flex-direction:column}.report-stage{grid-template-columns:85px 1fr 22px}.report-kpis{gap:6px}.report-kpis div{padding:10px}}
+
+/* Verified Job Proof */
+.proof-card{align-items:flex-start}
+.proof-card .work-record-actions{display:flex;flex-direction:column;align-items:stretch;gap:8px;min-width:175px}
+.proof-feedback{background:#f0f8f3;border-left:3px solid var(--green);padding:12px 14px;border-radius:8px;margin:12px 0;font-size:11px}
+.proof-feedback p{margin:6px 0;color:var(--muted)}
+.proof-history{margin-top:12px;border-top:1px solid var(--line);padding-top:10px;font-size:11px;color:var(--muted)}
+.proof-history summary{cursor:pointer;font-weight:700;color:var(--green)}
+.proof-history p{padding:8px 0;border-bottom:1px solid #eff3f0}
+.evidence-link{display:inline-block;margin:8px 0;color:var(--green);font-size:11px;font-weight:700;text-decoration:none}
+.form-hint{font-size:10px;line-height:1.6;color:var(--muted);background:#f3f8f4;padding:11px;border-radius:9px}
+@media(max-width:650px){.proof-card{display:block}.proof-card .work-record-actions{margin-top:15px;min-width:0}.proof-card .work-record-actions .btn{width:100%}}
+@media print{.top,.sidebar,.toolbar,.side-bottom,#site-footer,.work-record-actions{display:none!important}.app-shell{display:block}.page-content{padding:0}.proof-card{break-inside:avoid;box-shadow:none}}
