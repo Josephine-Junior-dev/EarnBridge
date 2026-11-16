@@ -22,12 +22,24 @@ create table if not exists public.eb_work_verification_events (
   id uuid primary key default gen_random_uuid(),
   record_id uuid not null references public.eb_work_records(id) on delete cascade,
   owner_id uuid not null references auth.users(id) on delete cascade,
-  event_type text not null check (event_type in ('created','confirmation_requested','customer_confirmed','customer_rejected')),
+  event_type text not null check (event_type in ('created','confirmation_requested','customer_confirmed','customer_rejected','verification_reset')),
   actor_type text not null check (actor_type in ('worker','customer','system')),
   actor_email text,
   notes text,
   created_at timestamptz not null default now()
 );
+
+-- Clear legacy verified labels because the previous version allowed workers to set them themselves.
+-- Existing records return to pending/self-reported status until a customer confirms by email.
+insert into public.eb_work_verification_events(record_id, owner_id, event_type, actor_type, notes)
+select id, owner_id, 'verification_reset', 'system',
+       'Legacy verified status cleared during secure customer-confirmation rollout.'
+from public.eb_work_records where status = 'verified';
+
+update public.eb_work_records
+set status = 'submitted', verified_at = null, customer_feedback = null,
+    customer_rating = null, updated_at = now()
+where status = 'verified';
 
 create index if not exists eb_work_confirmations_record_idx on public.eb_work_confirmations(record_id, created_at desc);
 create index if not exists eb_work_events_owner_idx on public.eb_work_verification_events(owner_id, created_at desc);
