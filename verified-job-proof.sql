@@ -210,4 +210,60 @@ create policy eb_work_evidence_owner_delete on storage.objects
 
 grant select on public.eb_work_confirmations, public.eb_work_verification_events to authenticated;
 
+
+-- Public passport endpoint exposes only approved professional information and confirmed jobs.
+create or replace function public.eb_get_public_passport(p_user_id uuid)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = public, extensions
+as $
+declare
+  v_result jsonb;
+begin
+  select jsonb_build_object(
+    'profile', jsonb_build_object(
+      'id', p.id,
+      'full_name', p.full_name,
+      'headline', p.headline,
+      'bio', p.bio,
+      'city', p.city,
+      'country', p.country,
+      'website_url', p.website_url
+    ),
+    'skills', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'skill_name', s.skill_name,
+        'skill_level', s.skill_level,
+        'years_experience', s.years_experience
+      ) order by s.skill_name)
+      from public.eb_skills s where s.user_id = p.id
+    ), '[]'::jsonb),
+    'verified_work', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'project_title', w.project_title,
+        'work_description', w.work_description,
+        'completion_date', w.completion_date,
+        'verified_at', w.verified_at,
+        'customer_rating', w.customer_rating
+      ) order by coalesce(w.completion_date, w.verified_at::date) desc)
+      from public.eb_work_records w
+      where w.owner_id = p.id and w.status = 'verified' and w.verified_at is not null
+    ), '[]'::jsonb)
+  )
+  into v_result
+  from public.eb_profiles p
+  where p.id = p_user_id and p.profile_visibility = 'public';
+
+  if v_result is null then
+    return jsonb_build_object('error', 'This Work Passport is private or unavailable.');
+  end if;
+  return v_result;
+end;
+$;
+
+revoke all on function public.eb_get_public_passport(uuid) from public;
+grant execute on function public.eb_get_public_passport(uuid) to anon, authenticated;
+
 commit;
