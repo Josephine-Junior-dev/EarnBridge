@@ -43,6 +43,7 @@ Deno.serve(async (req) => {
     if (recordError) throw recordError;
     if (!record) return new Response(JSON.stringify({ error: "Work record not found or not owned by this account." }), { status: 404, headers: { ...cors, "Content-Type": "application/json" } });
     if (!record.client_email) return new Response(JSON.stringify({ error: "Add the customer's email address before requesting confirmation." }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
+    if (authData.user.email && record.client_email.toLowerCase() === authData.user.email.toLowerCase()) return new Response(JSON.stringify({ error: "Use the customer email address, not the email used by your worker account." }), { status: 400, headers: { ...cors, "Content-Type": "application/json" } });
     if (record.status === "verified" || record.status === "disputed") return new Response(JSON.stringify({ error: "This record is not eligible for another confirmation request." }), { status: 409, headers: { ...cors, "Content-Type": "application/json" } });
 
     const { data: issued, error: issueError } = await admin.rpc("eb_issue_work_confirmation", { p_record_id: recordId }).single();
