@@ -79,3 +79,33 @@ main{min-height:calc(100vh - 120px)}.auth{max-width:1260px;min-height:calc(100vh
 .profile-preview{width:100%;border:0;cursor:pointer;font:inherit;transition:transform .18s,box-shadow .18s;text-align:center}
 .profile-preview:hover,.profile-preview:focus-visible{transform:translateY(-2px);box-shadow:0 16px 34px #087f5b35;outline:2px solid #a8d9be;outline-offset:3px}
 .profile-edit-hint{display:block;margin-top:14px;color:#d8f3e3;font-size:10px;font-weight:700}
+
+
+/* Profile display and dashboard entry card */
+.profile-home-card{width:100%;display:flex;align-items:center;gap:14px;text-align:left;padding:18px 20px;margin:0 0 24px;border:1px solid var(--line,#dfe7ee);border-radius:18px;background:linear-gradient(115deg,#f2fbf8,#fff);color:inherit;cursor:pointer;box-shadow:0 8px 24px rgba(20,50,70,.06)}
+.profile-home-card:hover{transform:translateY(-2px);border-color:#36a98c;box-shadow:0 12px 28px rgba(20,50,70,.1)}
+.profile-home-card>span:nth-child(2){display:grid;gap:5px;flex:1}
+.profile-home-card strong{font-size:1rem}
+.profile-home-card small{color:var(--muted,#687887);line-height:1.5}
+.profile-home-card>b{color:#087b66;white-space:nowrap}
+.profile-home-icon{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border-radius:14px;background:#dff5ee;color:#087b66;font-size:1.5rem}
+.profile-view{display:grid;gap:20px}
+.profile-view-hero{display:flex;align-items:center;gap:20px;padding:26px;border-radius:22px;background:linear-gradient(120deg,#102d43,#155b59);color:#fff}
+.profile-avatar-large{width:76px;height:76px;flex:0 0 76px;font-size:2rem}
+.profile-view-intro h2{margin:7px 0;font-size:clamp(1.5rem,4vw,2rem)}
+.profile-view-intro p{margin:0 0 12px;color:#d7e8e7}
+.profile-view-tags{display:flex;gap:8px;flex-wrap:wrap}
+.profile-view-actions{display:flex;gap:10px;flex-wrap:wrap}
+.profile-view-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.profile-info-card{padding:20px;border:1px solid var(--line,#e1e8ed);border-radius:18px;background:#fff;min-width:0}
+.profile-info-card h3{margin:0 0 14px}
+.profile-bio{white-space:pre-wrap;line-height:1.7;color:var(--muted,#687887)}
+.profile-details{display:grid;gap:12px;margin:0}
+.profile-details>div{display:grid;gap:3px}
+.profile-details dt{font-size:.78rem;color:var(--muted,#687887)}
+.profile-details dd{margin:0;overflow-wrap:anywhere}
+.profile-skill-list{display:flex;flex-wrap:wrap;gap:9px}
+.profile-skill-chip{display:grid;gap:3px;padding:9px 12px;border-radius:12px;background:#f1f7f6}
+.profile-skill-chip small{font-size:.72rem;color:var(--muted,#687887)}
+.profile-editor-page{display:grid;gap:18px}
+@media(max-width:700px){.profile-view-hero{align-items:flex-start;padding:19px;gap:13px}.profile-avatar-large{width:58px;height:58px;flex-basis:58px}.profile-view-grid{grid-template-columns:1fr}.profile-home-card{align-items:flex-start;flex-wrap:wrap}.profile-home-card>b{margin-left:58px}}
