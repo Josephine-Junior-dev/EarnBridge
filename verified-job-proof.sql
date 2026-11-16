@@ -81,8 +81,8 @@ create or replace function public.eb_issue_work_confirmation(p_record_id uuid)
 returns table(token text, customer_email text, project_title text)
 language plpgsql
 security definer
-set search_path = public
-as $$
+set search_path = public, extensions
+as $
 declare
   v_record public.eb_work_records%rowtype;
   v_token text;
@@ -130,8 +130,8 @@ create or replace function public.eb_confirm_work_record(
 returns jsonb
 language plpgsql
 security definer
-set search_path = public
-as $$
+set search_path = public, extensions
+as $
 declare
   v_confirmation public.eb_work_confirmations%rowtype;
   v_status text;
