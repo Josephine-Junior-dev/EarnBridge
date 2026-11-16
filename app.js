@@ -255,3 +255,83 @@ async function marketplace(){
  $("#market-search").oninput=e=>document.querySelectorAll("#market-grid .service-card").forEach(c=>c.hidden=!c.textContent.toLowerCase().includes(e.target.value.toLowerCase()));
  document.querySelectorAll("[data-order-service]").forEach(b=>b.onclick=()=>{const x=rows.find(z=>z.id===b.dataset.orderService);modal("Request "+esc(x.title),'<form class="form-grid">'+field("Order title","title","text",x.title,true)+area("Describe exactly what you need","description","",true)+field("Agreed price ("+(x.currency||"KES")+")","amount","number",x.price??"",true,'min="0.01" step="0.01"')+field("Requested delivery date","due_date","date","")+'<p class="form-hint full">This sends an order request. No payment is taken at this stage.</p>'+submit("Send order request")+'</form>',async p=>{p.customer_id=user.id;p.provider_id=x.user_id;p.service_id=x.id;p.amount=Number(p.amount);p.currency=x.currency||"KES";p.status="requested";const {error}=await db.from("eb_orders").insert(p);if(error)throw error;toast("Order request sent");go("orders")})});
 }
+
+
+/* VERIFIED JOB PROOF — private evidence + emailed customer confirmation */
+workForm = function(x={}){
+ const html='<form class="form-grid">'+
+  field("Project / job title","project_title","text",x.project_title,true)+
+  field("Customer name","client_name","text",x.client_name,true)+
+  field("Customer email","client_email","email",x.client_email,true)+
+  area("What work did you deliver?","work_description",x.work_description||"",true)+
+  field("Start date","start_date","date",x.start_date)+
+  field("Completion date","completion_date","date",x.completion_date)+
+  field("Agreed value","agreed_amount","number",x.agreed_amount??"",false,'min="0" step="0.01"')+
+  selectField("Currency","currency",["KES","USD","GBP","EUR","UGX","TZS","NGN"],x.currency||"KES")+
+  '<label class="field full"><span>Private evidence file (photo or PDF, max 10 MB)</span><input name="evidence_file" type="file" accept="image/jpeg,image/png,image/webp,application/pdf"></label>'+
+  area("Evidence notes (do not include confidential information)","evidence_note",x.evidence_note||"")+
+  '<p class="form-hint full">Evidence is stored in a private bucket. A customer confirmation email is sent separately after you save the record.</p>'+
+  submit("Save work record")+'</form>';
+ modal(x.id?"Edit work record":"Add work to your passport",html,async p=>{
+  const file=p.evidence_file instanceof File && p.evidence_file.size?p.evidence_file:null;
+  delete p.evidence_file;
+  p.owner_id=user.id;
+  p.agreed_amount=p.agreed_amount?Number(p.agreed_amount):null;
+  if(file){
+   if(file.size>10*1024*1024)throw new Error("Evidence file must be 10 MB or smaller.");
+   const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,"-");
+   const path=user.id+"/"+crypto.randomUUID()+"-"+safe;
+   const up=await db.storage.from("eb-work-evidence").upload(path,file,{contentType:file.type,upsert:false});
+   if(up.error)throw up.error;
+   p.evidence_url=path;
+  }
+  if(x.id){
+   const q=await db.from("eb_work_records").update(p).eq("id",x.id).eq("owner_id",user.id);
+   if(q.error)throw q.error;
+  }else{
+   const q=await db.from("eb_work_records").insert(p);
+   if(q.error)throw q.error;
+  }
+  toast("Work record saved. It is not verified yet.");
+  passport();
+ });
+};
+
+passport = async function(){
+ const {data,error}=await db.from("eb_work_records").select("*").order("created_at",{ascending:false});
+ if(error)throw error;
+ const rows=data||[];
+ let events=[];
+ const ev=await db.from("eb_work_verification_events").select("*").order("created_at",{ascending:false}).limit(100);
+ if(!ev.error)events=ev.data||[];
+ const verified=rows.filter(x=>x.status==="verified").length;
+ const pending=rows.filter(x=>x.status==="submitted").length;
+ const cards=await Promise.all(rows.map(async x=>{
+  let evidence="";
+  if(x.evidence_url){
+   if(/^https?:\/\//i.test(x.evidence_url))evidence=x.evidence_url;
+   else {const signed=await db.storage.from("eb-work-evidence").createSignedUrl(x.evidence_url,900);if(!signed.error)evidence=signed.data.signedUrl;}
+  }
+  const history=events.filter(e=>e.record_id===x.id);
+  const statusClass=x.status==="verified"?"tag-green":x.status==="disputed"?"tag-amber":"tag-blue";
+  const actions=x.status==="verified"||x.status==="disputed"
+   ?'<span class="tag '+statusClass+'">'+esc(x.status.replaceAll("_"," "))+'</span>'
+   :'<div class="actions"><button class="icon-btn" title="Edit" data-proof-edit="'+x.id+'">✎</button><button class="icon-btn delete-btn" title="Delete" data-proof-delete="'+x.id+'">⌫</button></div>';
+  const request=x.status==="verified"||x.status==="disputed"?"":'<button class="btn btn-primary" data-send-confirm="'+x.id+'">'+(x.status==="submitted"?"Resend confirmation email":"Email customer to confirm")+'</button>';
+  return '<article class="list-card proof-card"><div class="work-record-main"><div class="work-record-top"><span class="tag '+statusClass+'">'+esc(x.status.replaceAll("_"," "))+'</span><small>'+esc(x.completion_date||x.start_date||"Date not set")+'</small></div><h3>'+esc(x.project_title)+'</h3><p>'+esc(x.work_description)+'</p><p><b>Customer:</b> '+esc(x.client_name)+' · <b>Email:</b> '+esc(x.client_email||"Not supplied")+'</p><p><b>Value:</b> '+(x.agreed_amount==null?"Not stated":money(x.agreed_amount,x.currency))+'</p>'+(evidence?'<a class="evidence-link" href="'+esc(evidence)+'" target="_blank" rel="noopener">↗ View private evidence (15-minute link)</a>':"")+(x.evidence_note?'<p class="muted">'+esc(x.evidence_note)+'</p>':"")+(x.customer_feedback?'<div class="proof-feedback"><b>Customer feedback</b><p>'+esc(x.customer_feedback)+'</p>'+(x.customer_rating?'Rating: '+x.customer_rating+'/5':"")+'</div>':"")+'<details class="proof-history"><summary>Verification history ('+history.length+')</summary>'+(history.map(e=>'<p><b>'+esc(e.event_type.replaceAll("_"," "))+'</b> · '+new Date(e.created_at).toLocaleString()+'<br><small>'+esc(e.actor_email||e.actor_type)+'</small></p>').join("")||'<p>No confirmation events yet.</p>')+'</details></div><div class="work-record-actions">'+actions+request+'</div></article>';
+ }));
+ shell('<div class="stats-grid">'+stat("Customer-confirmed jobs",verified,"Only email-confirmed records","✓")+stat("Awaiting customer",pending,"Confirmation email sent","◷")+stat("Total work records",rows.length,"Your recorded experience","▤")+'</div><div class="toolbar"><p class="toolbar-note">A job becomes verified only after the customer opens their private email link and confirms it. Self-reported records remain unverified.</p><div><button class="btn btn-outline" id="print-passport">Print / Save PDF</button> <button class="btn btn-primary" id="add-work">＋ Add completed work</button></div></div><div class="list-cards">'+(cards.join("")||empty("Your Work Passport starts here","Add completed work, attach evidence and invite customers to confirm it."))+'</div><div class="safety-note">Verification means the customer email recipient confirmed the record. It does not independently prove workmanship, identity, payment or legal qualification.</div>');
+ $("#add-work").onclick=()=>workForm();
+ $("#print-passport").onclick=()=>window.print();
+ document.querySelectorAll("[data-proof-edit]").forEach(b=>b.onclick=()=>workForm(rows.find(x=>x.id===b.dataset.proofEdit)));
+ document.querySelectorAll("[data-proof-delete]").forEach(b=>b.onclick=async()=>{if(!confirm("Delete this work record?"))return;const {error}=await db.from("eb_work_records").delete().eq("id",b.dataset.proofDelete);if(error)return fail(error);toast("Work record deleted");passport()});
+ document.querySelectorAll("[data-send-confirm]").forEach(b=>b.onclick=async()=>{
+  if(!confirm("Send a one-time confirmation link to the customer's saved email address?"))return;
+  b.disabled=true;b.textContent="Sending…";
+  const {data,error}=await db.functions.invoke("send-job-confirmation",{body:{record_id:b.dataset.sendConfirm}});
+  if(error){b.disabled=false;b.textContent="Try sending again";return fail(error)}
+  if(data?.error){b.disabled=false;b.textContent="Try sending again";return fail(new Error(data.error))}
+  toast(data?.message||"Customer confirmation email sent.");passport();
+ });
+};
+
