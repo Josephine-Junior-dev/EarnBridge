@@ -128,3 +128,8 @@ If email delivery is not configured, the request button will return a clear setu
 The existing workspace already contains the marketplace, opportunities, service catalogue, customer leads/enquiries, order workflow, businesses, reports, earnings ledger and plan-request pages. Those are functional foundations, not proof that every SaaS capability is production-complete.
 
 Live M-Pesa/card collection, escrow, milestone fund release, automatic subscription billing, refunds, automated matching and formal identity checks are not enabled by this commit. Upgrade requests do not collect money or activate paid access.
+## Career selector and skills directory
+
+The profile now includes a selectable career / professional role. The My Skills section includes a starter directory grouped into Automotive & Transport, Construction & Trades, Home & Facility Services, Technology & Digital, Business & Administration, Beauty / Health / Wellness, Food & Hospitality, Creative & Media, Education & Professional, and Retail & Agriculture. Users can search their own skills, choose a suggested skill, or type a custom skill.
+
+Run the updated `verified-job-proof.sql` migration in the existing Supabase project to add `eb_profiles.career` and `eb_skills.category`, and update the public Work Passport response. Existing skill records are preserved and receive the category `Other` by default. The directory is a suggestion catalogue; it does not automatically claim that a user possesses any listed skill. Users must add their own skills and select their actual experience level.
