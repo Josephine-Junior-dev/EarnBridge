@@ -133,3 +133,12 @@ Live M-Pesa/card collection, escrow, milestone fund release, automatic subscript
 The profile now includes a selectable career / professional role. The My Skills section includes a starter directory grouped into Automotive & Transport, Construction & Trades, Home & Facility Services, Technology & Digital, Business & Administration, Beauty / Health / Wellness, Food & Hospitality, Creative & Media, Education & Professional, and Retail & Agriculture. Users can search their own skills, choose a suggested skill, or type a custom skill.
 
 Run the updated `verified-job-proof.sql` migration in the existing Supabase project to add `eb_profiles.career` and `eb_skills.category`, and update the public Work Passport response. Existing skill records are preserved and receive the category `Other` by default. The directory is a suggestion catalogue; it does not automatically claim that a user possesses any listed skill. Users must add their own skills and select their actual experience level.
+
+
+## Phone-friendly work receipts
+
+Run `job-receipt-phone.sql` in the same Supabase project's SQL Editor after `verified-job-proof.sql`. This adds an optional customer phone/WhatsApp field to each private work record.
+
+In **Work Passport**, add the customer's phone number and use **Share job receipt** to open a pre-filled WhatsApp message. If no phone number is saved, the app uses the phone's native share sheet (or copies the receipt). The receipt contains the job description, completion date, agreed value and public Work Passport link; it does not expose private evidence files or customer email addresses.
+
+This is a shareable work summary, not a payment receipt and not proof that the customer confirmed the work. The existing secure customer-confirmation process remains email-based: the confirmation token is created server-side and sent to the saved customer email. Do not forward a confirmation token yourself or mark a job verified manually. Phone/SMS OTP confirmation requires a configured SMS provider and a separate trusted verification workflow; it is not enabled by this change.
